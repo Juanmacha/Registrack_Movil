@@ -1,13 +1,28 @@
+import { useState } from 'react';
 import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { HelloWave } from '@/components/hello-wave';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
+
+import { useAuth } from '@/contexts/AuthContext';
+import { colors } from '@/styles/authStyles';
+import { tieneRolAdministrativo } from '@/utils/roles';
 
 export default function HomeScreen() {
+  const router = useRouter();
+  const { logout, user } = useAuth();
+  const [loading, setLoading] = useState(false);
+
+  const handleLogout = async () => {
+    setLoading(true);
+    await logout();
+    router.replace('/login');
+  };
+
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
@@ -18,60 +33,32 @@ export default function HomeScreen() {
         />
       }>
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
+        <ThemedText type="title">Hola, {user?.nombre ?? 'Registrack'} 👋</ThemedText>
         <HelloWave />
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
+        <ThemedText type="subtitle">Sesión activa</ThemedText>
+        <ThemedText>Ya puedes navegar por la app o cerrar sesión para volver al login.</ThemedText>
+        {user && tieneRolAdministrativo(user) && (
+          <Link href="/dashboard" asChild>
+            <TouchableOpacity style={styles.dashboardButton}>
+              <Text style={styles.dashboardText}>📊 Ir al Dashboard</Text>
+            </TouchableOpacity>
+          </Link>
+        )}
+        <TouchableOpacity style={[styles.logoutButton, loading && { opacity: 0.8 }]} onPress={handleLogout} disabled={loading}>
+          <Text style={styles.logoutText}>{loading ? 'Cerrando...' : 'Cerrar sesión'}</Text>
+        </TouchableOpacity>
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
         <Link href="/modal">
           <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
+            <ThemedText type="subtitle">Explorar módulos</ThemedText>
           </Link.Trigger>
           <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
         </Link>
-
         <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
+          Esta es la pestaña principal. Ajusta el contenido según el rol administrativo o cliente.
         </ThemedText>
       </ThemedView>
     </ParallaxScrollView>
@@ -86,7 +73,20 @@ const styles = StyleSheet.create({
   },
   stepContainer: {
     gap: 8,
-    marginBottom: 8,
+    marginBottom: 16,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    ...Platform.select({
+      web: { boxShadow: '0px 6px 12px rgba(0,0,0,0.1)' },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 6,
+      },
+    }),
   },
   reactLogo: {
     height: 178,
@@ -94,5 +94,29 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     position: 'absolute',
+  },
+  dashboardButton: {
+    marginTop: 8,
+    marginBottom: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  dashboardText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  logoutButton: {
+    marginTop: 8,
+    backgroundColor: colors.accent,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  logoutText: {
+    color: '#fff',
+    fontWeight: '600',
   },
 });
