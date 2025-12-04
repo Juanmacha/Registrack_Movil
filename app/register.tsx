@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 import CustomAlert from '@/components/CustomAlert';
 import { useAuth } from '@/contexts/AuthContext';
@@ -50,6 +51,8 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [acceptPolicy, setAcceptPolicy] = useState(false);
   const [alertConfig, setAlertConfig] = useState({ visible: false, title: '', message: '', success: false });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleChange = (key: keyof RegisterForm, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -207,26 +210,50 @@ export default function RegisterScreen() {
         />
 
         <Text style={authStyles.inputLabel}>Contraseña</Text>
-        <TextInput
-          style={[authStyles.input, errors.contrasena && authStyles.inputError]}
-          placeholder="********"
-          placeholderTextColor={colors.gray}
-          secureTextEntry
-          value={form.contrasena}
-          onChangeText={(text) => handleChange('contrasena', text)}
-        />
+        <View>
+          <TextInput
+            style={[authStyles.input, errors.contrasena && authStyles.inputError]}
+            placeholder="********"
+            placeholderTextColor={colors.gray}
+            secureTextEntry={!showPassword}
+            value={form.contrasena}
+            onChangeText={(text) => handleChange('contrasena', text)}
+          />
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={{ position: 'absolute', right: 12, top: 12, padding: 4, minWidth: 32, alignItems: 'center', justifyContent: 'center' }}
+            onPress={() => setShowPassword((prev) => !prev)}>
+            <Ionicons 
+              name={showPassword ? 'eye' : 'eye-off'} 
+              size={20} 
+              color={colors.gray} 
+            />
+          </TouchableOpacity>
+        </View>
         <Text style={authStyles.helperText}>{getPasswordRequirementsShort()}</Text>
         {errors.contrasena ? <Text style={authStyles.errorText}>{errors.contrasena}</Text> : null}
 
         <Text style={authStyles.inputLabel}>Confirmar contraseña</Text>
-        <TextInput
-          style={[authStyles.input, errors.confirmacion && authStyles.inputError]}
-          placeholder="********"
-          placeholderTextColor={colors.gray}
-          secureTextEntry
-          value={form.confirmacion}
-          onChangeText={(text) => handleChange('confirmacion', text)}
-        />
+        <View>
+          <TextInput
+            style={[authStyles.input, errors.confirmacion && authStyles.inputError]}
+            placeholder="********"
+            placeholderTextColor={colors.gray}
+            secureTextEntry={!showConfirmPassword}
+            value={form.confirmacion}
+            onChangeText={(text) => handleChange('confirmacion', text)}
+          />
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={{ position: 'absolute', right: 12, top: 12, padding: 4, minWidth: 32, alignItems: 'center', justifyContent: 'center' }}
+            onPress={() => setShowConfirmPassword((prev) => !prev)}>
+            <Ionicons 
+              name={showConfirmPassword ? 'eye' : 'eye-off'} 
+              size={20} 
+              color={colors.gray} 
+            />
+          </TouchableOpacity>
+        </View>
         {errors.confirmacion ? <Text style={authStyles.errorText}>{errors.confirmacion}</Text> : null}
 
         <TouchableOpacity style={authStyles.checkboxRow} onPress={() => setAcceptPolicy((prev) => !prev)}>
