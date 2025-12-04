@@ -83,6 +83,12 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     if (!validateForm()) {
+      setAlertConfig({
+        visible: true,
+        title: 'Campos incompletos',
+        message: 'Por favor, completa todos los campos requeridos.',
+        success: false,
+      });
       return;
     }
 

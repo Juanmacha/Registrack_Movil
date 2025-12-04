@@ -2,11 +2,11 @@
 export const API_TIMEOUT = 150_000;
 
 // 🔄 Cambia esto a true para usar localhost cuando Render esté caído
-const USE_LOCAL_API = true;
+const USE_LOCAL_API = false;
 
 const DEV_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? '/api';
 const LOCAL_BASE_URL = 'http://localhost:3000/api';
-const PROD_BASE_URL = 'https://api-registrack-2.onrender.com/api';
+const PROD_BASE_URL = 'https://apiregistrack-b0b629b0780d.herokuapp.com/api';
 
 // Selecciona la URL según el entorno y la configuración
 const getBaseURL = () => {

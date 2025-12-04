@@ -47,6 +47,12 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!validateForm()) {
+      setAlertConfig({
+        visible: true,
+        title: 'Campos incompletos',
+        message: 'Por favor, completa todos los campos requeridos.',
+        type: 'error',
+      });
       return;
     }
 
@@ -74,11 +80,17 @@ export default function LoginScreen() {
       let message = 'Revisa tus credenciales e inténtalo de nuevo.';
       
       if (error instanceof Error) {
-        message = error.message;
-        // Si es un error 429 (rate limit), cambiar el título
         const apiError = error as ApiClientError;
-        if (apiError.status === 429) {
+        
+        // Detectar credenciales incorrectas (401)
+        if (apiError.status === 401) {
+          title = 'Credenciales incorrectas';
+          message = 'El correo o la contraseña son incorrectos. Verifica tus credenciales e intenta de nuevo.';
+        } else if (apiError.status === 429) {
           title = 'Demasiados intentos';
+          message = error.message;
+        } else {
+          message = error.message;
         }
       }
       
