@@ -2,7 +2,7 @@
 export const API_TIMEOUT = 150_000;
 
 // 🔄 Cambia esto a true para usar localhost cuando Render esté caído
-const USE_LOCAL_API = false;
+const USE_LOCAL_API = true;
 
 const DEV_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? '/api';
 const LOCAL_BASE_URL = 'http://localhost:3000/api';

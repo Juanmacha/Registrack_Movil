@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useMisSolicitudes } from '@/hooks/useSolicitudes';
@@ -24,6 +24,12 @@ export default function MisProcesosTabScreen() {
   const [solicitudSeleccionada, setSolicitudSeleccionada] = useState<Solicitud | null>(null);
   const [mostrarDetalle, setMostrarDetalle] = useState(false);
   const [mostrarSeguimiento, setMostrarSeguimiento] = useState(false);
+  const refetchRef = useRef(refetch);
+
+  // Actualizar la referencia cuando refetch cambie
+  useEffect(() => {
+    refetchRef.current = refetch;
+  }, [refetch]);
 
   // Redirigir si no está autenticado (usando useEffect para evitar actualización durante render)
   useEffect(() => {
@@ -31,6 +37,14 @@ export default function MisProcesosTabScreen() {
       router.replace('/login');
     }
   }, [authLoading, isAuthenticated, user, router]);
+
+  // Refrescar datos cuando la pantalla recibe el foco
+  useFocusEffect(
+    React.useCallback(() => {
+      // Usar la referencia para evitar dependencias que cambien
+      refetchRef.current();
+    }, [])
+  );
 
   if (authLoading) {
     return (

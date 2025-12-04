@@ -1918,7 +1918,12 @@ export default function CrearSolicitudClienteModal({ visible, onClose, onSuccess
           <View style={styles.paymentContainer}>
             <Text style={styles.paymentLabel}>Monto a Pagar:</Text>
             <Text style={styles.paymentAmount}>
-              ${montoAPagar ? montoAPagar.toLocaleString('es-CO') : 'Calculando...'}
+              {montoAPagar ? new Intl.NumberFormat('es-CO', { 
+                style: 'currency', 
+                currency: 'COP', 
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              }).format(montoAPagar) : 'Calculando...'}
             </Text>
             <Text style={styles.paymentInfo}>
               Tu solicitud ha sido creada exitosamente. Para activarla, por favor procesa el pago.

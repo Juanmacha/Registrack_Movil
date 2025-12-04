@@ -15,6 +15,7 @@ export default function PerfilTabScreen() {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showLogoutSuccess, setShowLogoutSuccess] = useState(false);
 
   // Redirigir si no está autenticado (usando useEffect para evitar actualización durante render)
   useEffect(() => {
@@ -55,11 +56,17 @@ export default function PerfilTabScreen() {
     try {
       setLoggingOut(true);
       await logout();
-      router.replace('/login');
+      setLoggingOut(false);
+      setShowLogoutSuccess(true);
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
       setLoggingOut(false);
     }
+  };
+
+  const handleLogoutSuccessClose = () => {
+    setShowLogoutSuccess(false);
+    router.replace('/login');
   };
 
   const handleLogoutCancel = () => {
@@ -189,6 +196,15 @@ export default function PerfilTabScreen() {
         cancelText="Cancelar"
         onConfirm={handleLogoutConfirm}
         onCancel={handleLogoutCancel}
+      />
+
+      {/* Mensaje de éxito al cerrar sesión */}
+      <CustomAlert
+        visible={showLogoutSuccess}
+        title="Sesión cerrada"
+        message="Has cerrado sesión correctamente."
+        type="success"
+        onConfirm={handleLogoutSuccessClose}
       />
     </View>
   );

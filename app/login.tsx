@@ -68,13 +68,24 @@ export default function LoginScreen() {
       console.log('🔍 DEBUG LOGIN - Es array?', Array.isArray(usuario.roles));
       console.log('🔍 DEBUG LOGIN - Es administrativo?', tieneRolAdministrativo(usuario));
       
-      // Redirigir según el rol del usuario
-      if (tieneRolAdministrativo(usuario)) {
-        router.replace('/dashboard');
-      } else {
-        // Para clientes, redirigir a Mis Procesos (primera opción del menú de cliente)
-        router.replace('/(tabs)/mis-procesos');
-      }
+      // Mostrar mensaje de éxito
+      setAlertConfig({
+        visible: true,
+        title: 'Sesión iniciada',
+        message: 'Has iniciado sesión correctamente.',
+        type: 'success',
+      });
+      
+      // Esperar un momento antes de redirigir
+      setTimeout(() => {
+        // Redirigir según el rol del usuario
+        if (tieneRolAdministrativo(usuario)) {
+          router.replace('/dashboard');
+        } else {
+          // Para clientes, redirigir a Mis Procesos (primera opción del menú de cliente)
+          router.replace('/(tabs)/mis-procesos');
+        }
+      }, 1500);
     } catch (error) {
       let title = 'No pudimos iniciar sesión';
       let message = 'Revisa tus credenciales e inténtalo de nuevo.';
@@ -184,7 +195,7 @@ export default function LoginScreen() {
         visible={alertConfig.visible}
         title={alertConfig.title}
         message={alertConfig.message}
-        type={alertConfig.type === 'error' ? 'error' : 'info'}
+        type={alertConfig.type as 'success' | 'error' | 'info'}
         onConfirm={() => setAlertConfig((prev) => ({ ...prev, visible: false }))}
       />
     </View>

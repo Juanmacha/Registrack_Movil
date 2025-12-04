@@ -30,7 +30,7 @@ export default function CustomAlert({
       case 'error':
         return colors.danger;
       case 'warning':
-        return colors.warning;
+        return colors.primary;
       default:
         return colors.accent;
     }
