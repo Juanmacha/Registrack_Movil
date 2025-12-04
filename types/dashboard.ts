@@ -16,13 +16,25 @@ export interface IngresoPorMes {
   servicios: Array<{ nombre: string; ingresos: number }>;
 }
 
+export interface DistribucionPorServicio {
+  total_ingresos: number;
+  servicios: Array<{
+    id_servicio: number;
+    nombre_servicio: string;
+    total_ingresos: number;
+    total_transacciones: number;
+    porcentaje: number;
+  }>;
+}
+
 export interface DashboardIngresosResponse {
   success: boolean;
   data: {
     total_ingresos: number;
     periodo: string;
-    ingresos_por_servicio: IngresoPorServicio[];
-    ingresos_por_mes: IngresoPorMes[];
+    ingresos_por_servicio?: IngresoPorServicio[];
+    ingresos_por_mes?: IngresoPorMes[];
+    distribucion_por_servicio?: DistribucionPorServicio;
   };
 }
 

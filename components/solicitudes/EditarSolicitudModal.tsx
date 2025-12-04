@@ -176,7 +176,7 @@ export default function EditarSolicitudModal({
 
     if (tipoPersona === 'Natural') {
       if (!tipoDocumento) return 'El tipo de documento es requerido';
-      if (!numeroDocumento.trim()) return 'El número de documento es requerido';
+      if (!String(numeroDocumento || '').trim()) return 'El número de documento es requerido';
       if (!nombres.trim()) return 'Los nombres son requeridos';
       if (!apellidos.trim()) return 'Los apellidos son requeridos';
     } else {
@@ -220,7 +220,7 @@ export default function EditarSolicitudModal({
 
       if (tipoPersona === 'Natural') {
         payload.tipodedocumento = tipoDocumento;
-        payload.numerodedocumento = numeroDocumento.trim();
+        payload.numerodedocumento = String(numeroDocumento || '').trim();
         payload.nombrecompleto = `${nombres.trim()} ${apellidos.trim()}`.trim();
       } else {
         payload.tipodeentidadrazonsocial = tipoEntidad.trim();

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -131,8 +133,9 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
           <View style={authStyles.card}>
-        <Text style={authStyles.title}>Crea tu cuenta</Text>
-        <Text style={authStyles.subtitle}>Completa los siguientes datos</Text>
+            <Image source={require('@/assets/images/logo.png')} style={styles.logo} />
+            <Text style={authStyles.title}>Crea tu cuenta</Text>
+            <Text style={authStyles.subtitle}>Completa los siguientes datos</Text>
 
         <Text style={authStyles.inputLabel}>Nombre</Text>
         <TextInput
@@ -269,4 +272,14 @@ export default function RegisterScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  logo: {
+    width: 120,
+    height: 120,
+    alignSelf: 'center',
+    marginBottom: 24,
+    resizeMode: 'contain',
+  },
+});
 

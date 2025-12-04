@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { useSolicitudDetalle, useHistorialSeguimiento } from '@/hooks/useSolicitudes';
 import { colors } from '@/styles/authStyles';
@@ -20,6 +20,7 @@ interface DetalleSolicitudModalProps {
   onAsignarEmpleado?: () => void;
   onAgregarSeguimiento?: () => void;
   onDescargarArchivos?: () => void;
+  onDescargarArchivosZip?: () => void;
 }
 
 export default function DetalleSolicitudModal({
@@ -31,6 +32,7 @@ export default function DetalleSolicitudModal({
   onAsignarEmpleado,
   onAgregarSeguimiento,
   onDescargarArchivos,
+  onDescargarArchivosZip,
 }: DetalleSolicitudModalProps) {
   const [mostrarHistorial, setMostrarHistorial] = useState(false);
   
@@ -83,9 +85,14 @@ export default function DetalleSolicitudModal({
 
   const footer = (
     <View style={styles.footerActions}>
+      {onDescargarArchivosZip && (
+        <TouchableOpacity style={[styles.actionButton, styles.downloadZipButton]} onPress={onDescargarArchivosZip}>
+          <Text style={styles.actionButtonText} numberOfLines={2}>📦 Archivos{'\n'}Solicitud</Text>
+        </TouchableOpacity>
+      )}
       {onDescargarArchivos && (
         <TouchableOpacity style={[styles.actionButton, styles.downloadButton]} onPress={onDescargarArchivos}>
-          <Text style={styles.actionButtonText} numberOfLines={1}>📥 Descargar</Text>
+          <Text style={styles.actionButtonText} numberOfLines={2}>📥 Archivos{'\n'}Seguimiento</Text>
         </TouchableOpacity>
       )}
       {onAgregarSeguimiento && (
@@ -481,20 +488,20 @@ const styles = StyleSheet.create({
   footerActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
+    gap: 10,
+    justifyContent: 'flex-start',
+    alignItems: 'stretch',
     width: '100%',
   },
   actionButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 100,
+    flex: 1,
+    minWidth: '30%',
     maxWidth: '48%',
-    flexBasis: 'auto',
   },
   primaryButton: {
     backgroundColor: colors.primaryDark,
@@ -508,11 +515,15 @@ const styles = StyleSheet.create({
   downloadButton: {
     backgroundColor: colors.success,
   },
+  downloadZipButton: {
+    backgroundColor: '#10B981', // Verde más oscuro para diferenciarlo
+  },
   actionButtonText: {
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
+    lineHeight: 16,
   },
 });
 

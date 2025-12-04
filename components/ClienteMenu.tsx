@@ -10,13 +10,12 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { label: 'Dashboard', route: '/dashboard', icon: '📊' },
-  { label: 'Solicitudes', route: '/solicitudes', icon: '📋' },
-  { label: 'Finalizadas', route: '/solicitudes-finalizadas', icon: '✅' },
-  { label: 'Mi Perfil', route: '/profile', icon: '👤' },
+  { label: 'Solicitudes', route: '/(tabs)/solicitudes-cliente', icon: '📋' },
+  { label: 'Mis Procesos', route: '/(tabs)/mis-procesos', icon: '📊' },
+  { label: 'Mi Perfil', route: '/(tabs)/perfil', icon: '👤' },
 ];
 
-export default function AdminMenu() {
+export default function ClienteMenu() {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -28,7 +27,7 @@ export default function AdminMenu() {
     <View style={styles.container}>
       <View style={styles.menuContent}>
         {menuItems.map((item) => {
-          const isActive = pathname === item.route;
+          const isActive = pathname === item.route || pathname?.includes(item.route.replace('/(tabs)/', ''));
           return (
             <TouchableOpacity
               key={item.route}
@@ -91,7 +90,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     position: 'relative',
     minHeight: 60,
-    maxWidth: 100,
+    maxWidth: 120,
   },
   menuItemActive: {
     backgroundColor: '#F0F7FF',

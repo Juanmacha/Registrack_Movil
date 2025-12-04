@@ -18,10 +18,14 @@ const getDiasColor = (dias: number): 'error' | 'warning' | 'info' | 'default' =>
 };
 
 const getClienteNombre = (cliente: ServicioInactivo['cliente']): string => {
+  if (!cliente) return 'Sin cliente';
   if (typeof cliente === 'string') {
     return cliente;
   }
-  return `${cliente.usuario.nombre} ${cliente.usuario.apellido}`;
+  if (cliente.usuario) {
+    return `${cliente.usuario.nombre || ''} ${cliente.usuario.apellido || ''}`.trim() || 'Sin nombre';
+  }
+  return 'Sin cliente';
 };
 
 const getEmpleadoNombre = (empleado: ServicioInactivo['empleado_asignado']): string => {
@@ -33,6 +37,7 @@ const getEmpleadoNombre = (empleado: ServicioInactivo['empleado_asignado']): str
 };
 
 const getEstadoVariant = (estado: string): 'success' | 'error' | 'warning' | 'info' | 'default' => {
+  if (!estado) return 'default';
   const estadoLower = estado.toLowerCase();
   if (estadoLower.includes('finalizado') || estadoLower.includes('completado')) {
     return 'success';
@@ -86,11 +91,14 @@ export default function ServiciosInactivosTable() {
   }
 
   const filteredData = data.filter((servicio) => {
+    if (!searchQuery.trim()) return true;
+    
     const query = searchQuery.toLowerCase();
-    const servicioNombre = servicio.nombre_servicio.toLowerCase();
-    const clienteNombre = getClienteNombre(servicio.cliente).toLowerCase();
-    const empleadoNombre = getEmpleadoNombre(servicio.empleado_asignado).toLowerCase();
-    const estado = servicio.estado.toLowerCase();
+    const servicioNombre = (servicio.nombre_servicio || '').toLowerCase();
+    const clienteNombre = (getClienteNombre(servicio.cliente) || '').toLowerCase();
+    const empleadoNombre = (getEmpleadoNombre(servicio.empleado_asignado) || '').toLowerCase();
+    const estado = (servicio.estado || '').toLowerCase();
+    
     return (
       servicioNombre.includes(query) ||
       clienteNombre.includes(query) ||
@@ -105,8 +113,8 @@ export default function ServiciosInactivosTable() {
     <View style={styles.row}>
       <View style={styles.rowContent}>
         <View style={styles.rowHeader}>
-          <Text style={styles.servicioNombre}>{item.nombre_servicio}</Text>
-          <Badge label={item.estado} variant={getEstadoVariant(item.estado)} />
+          <Text style={styles.servicioNombre}>{item.nombre_servicio || 'Sin nombre'}</Text>
+          <Badge label={item.estado || 'Sin estado'} variant={getEstadoVariant(item.estado || '')} />
         </View>
 
         <View style={styles.rowInfo}>
@@ -157,8 +165,10 @@ export default function ServiciosInactivosTable() {
         <Text style={styles.emptyText}>No se encontraron resultados.</Text>
       ) : (
         <ScrollView style={styles.listContainer} nestedScrollEnabled>
-          {sortedData.map((item) => (
-            <View key={item.id.toString()}>{renderItem({ item })}</View>
+          {sortedData.map((item, index) => (
+            <View key={item.id?.toString() || item.id_orden_servicio?.toString() || `servicio-${index}`}>
+              {renderItem({ item })}
+            </View>
           ))}
         </ScrollView>
       )}

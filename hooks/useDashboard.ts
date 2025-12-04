@@ -51,7 +51,9 @@ export const useDashboardIngresos = (
 
   useEffect(() => {
     if (autoFetch) {
-      void fetchData();
+      fetchData().catch((err) => {
+        console.error('Error en hook de dashboard:', err);
+      });
     }
   }, [periodo, autoFetch]);
 
@@ -90,7 +92,9 @@ export const useDashboardServicios = (
 
   useEffect(() => {
     if (autoFetch) {
-      void fetchData();
+      fetchData().catch((err) => {
+        console.error('Error en hook de dashboard:', err);
+      });
     }
   }, [periodo, autoFetch]);
 
@@ -152,7 +156,9 @@ export const useDashboardRenovaciones = (autoFetch = true): UseDashboardHook<Mar
 
   useEffect(() => {
     if (autoFetch) {
-      void fetchData();
+      fetchData().catch((err) => {
+        console.error('Error en hook de dashboard:', err);
+      });
     }
   }, [autoFetch]);
 
@@ -188,7 +194,9 @@ export const useDashboardInactivas = (autoFetch = true): UseDashboardHook<Dashbo
 
   useEffect(() => {
     if (autoFetch) {
-      void fetchData();
+      fetchData().catch((err) => {
+        console.error('Error en hook de dashboard:', err);
+      });
     }
   }, [autoFetch]);
 

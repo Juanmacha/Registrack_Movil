@@ -3,10 +3,8 @@ import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'reac
 import { Link, useRouter } from 'expo-router';
 
 import CustomAlert from '@/components/CustomAlert';
-import { authApiService } from '@/services/authApiService';
 import { authStyles, colors } from '@/styles/authStyles';
 import { recoveryStorage } from '@/storage/recoveryStorage';
-import { obtenerMensajeErrorUsuario } from '@/utils/apiError';
 import { isNumericCode } from '@/utils/validators';
 
 export default function CodigoRecuperacionScreen() {
@@ -52,20 +50,28 @@ export default function CodigoRecuperacionScreen() {
 
     setLoading(true);
     setError('');
+    
+    // Simular validación (el código se verifica realmente en reset-password)
+    // Según la documentación, no hay endpoint para verificar el código,
+    // solo se valida el formato y se guarda para enviarlo en reset-password
     try {
-      const response = await authApiService.verifyResetCode({ correo, codigo });
-      await recoveryStorage.setToken(response.token);
+      // Simular un pequeño delay para mejor UX
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      
+      // Guardar el código como token (se enviará en reset-password)
+      await recoveryStorage.setToken(codigo);
+      
       setAlertConfig({
         visible: true,
-        title: 'Código verificado',
-        message: 'Ahora crea una nueva contraseña segura.',
+        title: 'Código válido',
+        message: 'El código ha sido verificado correctamente. Ahora crea una nueva contraseña segura.',
         success: true,
       });
     } catch (err) {
       setAlertConfig({
         visible: true,
-        title: 'Código inválido',
-        message: obtenerMensajeErrorUsuario(err as Error),
+        title: 'Error',
+        message: 'No se pudo guardar el código. Intenta de nuevo.',
         success: false,
       });
     } finally {

@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -18,6 +18,7 @@ import {
   CrearSeguimientoPayload,
 } from '@/types/solicitudes';
 import { ApiClientError, obtenerMensajeErrorUsuario } from '@/utils/apiError';
+import { tieneRolAdministrativo } from '@/utils/roles';
 
 interface UseSolicitudesHook {
   solicitudes: Solicitud[];
@@ -51,7 +52,50 @@ export const useSolicitudes = (autoFetch = true): UseSolicitudesHook => {
 
   useEffect(() => {
     if (autoFetch) {
-      void fetchData();
+      fetchData().catch((err) => {
+        console.error('Error en hook de solicitudes:', err);
+      });
+    }
+  }, [autoFetch]);
+
+  return { solicitudes, loading, error, refetch: fetchData };
+};
+
+interface UseSolicitudesFinalizadasHook {
+  solicitudes: Solicitud[];
+  loading: boolean;
+  error: string | null;
+  refetch: () => Promise<void>;
+}
+
+export const useSolicitudesFinalizadas = (autoFetch = true): UseSolicitudesFinalizadasHook => {
+  const { token } = useAuth();
+  const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
+  const [loading, setLoading] = useState(autoFetch);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      if (token) {
+        setSolicitudesAuthToken(token);
+      }
+      const data = await solicitudesApiService.getSolicitudesFinalizadas();
+      setSolicitudes(data);
+    } catch (err) {
+      const message = obtenerMensajeErrorUsuario(err as ApiClientError);
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (autoFetch) {
+      fetchData().catch((err) => {
+        console.error('Error en hook de solicitudes:', err);
+      });
     }
   }, [autoFetch]);
 
@@ -66,12 +110,12 @@ interface UseSolicitudDetalleHook {
 }
 
 export const useSolicitudDetalle = (id: number | null, autoFetch = true): UseSolicitudDetalleHook => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [solicitud, setSolicitud] = useState<SolicitudDetalle | null>(null);
   const [loading, setLoading] = useState(autoFetch && id !== null);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!id) {
       setLoading(false);
       return;
@@ -82,7 +126,15 @@ export const useSolicitudDetalle = (id: number | null, autoFetch = true): UseSol
       if (token) {
         setSolicitudesAuthToken(token);
       }
-      const data = await solicitudesApiService.getSolicitudById(id);
+      
+      // Detectar si es cliente o administrador/empleado
+      const esAdministrativo = tieneRolAdministrativo(user);
+      
+      // Usar el endpoint correcto según el rol
+      const data = esAdministrativo
+        ? await solicitudesApiService.getSolicitudById(id)
+        : await solicitudesApiService.getSolicitudByIdCliente(id);
+      
       setSolicitud(data);
     } catch (err) {
       const message = obtenerMensajeErrorUsuario(err as ApiClientError);
@@ -90,13 +142,16 @@ export const useSolicitudDetalle = (id: number | null, autoFetch = true): UseSol
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, token, user]);
 
   useEffect(() => {
     if (autoFetch && id) {
-      void fetchData();
+      fetchData().catch((err) => {
+        console.error('Error en hook de solicitudes:', err);
+      });
     }
-  }, [id, autoFetch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, autoFetch]); // fetchData está memoizado y solo cambia cuando id o token cambian
 
   return { solicitud, loading, error, refetch: fetchData };
 };
@@ -114,7 +169,7 @@ export const useClientes = (autoFetch = false): UseClientesHook => {
   const [loading, setLoading] = useState(autoFetch);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -129,13 +184,15 @@ export const useClientes = (autoFetch = false): UseClientesHook => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
-    if (autoFetch) {
-      void fetchData();
+    if (autoFetch && token) {
+      fetchData().catch((err) => {
+        console.error('Error en hook de solicitudes:', err);
+      });
     }
-  }, [autoFetch]);
+  }, [autoFetch, token, fetchData]);
 
   return { clientes, loading, error, refetch: fetchData };
 };
@@ -172,7 +229,9 @@ export const useEmpleados = (autoFetch = false): UseEmpleadosHook => {
 
   useEffect(() => {
     if (autoFetch) {
-      void fetchData();
+      fetchData().catch((err) => {
+        console.error('Error en hook de solicitudes:', err);
+      });
     }
   }, [autoFetch]);
 
@@ -211,7 +270,9 @@ export const useServicios = (autoFetch = false): UseServiciosHook => {
 
   useEffect(() => {
     if (autoFetch) {
-      void fetchData();
+      fetchData().catch((err) => {
+        console.error('Error en hook de solicitudes:', err);
+      });
     }
   }, [autoFetch]);
 
@@ -257,7 +318,9 @@ export const useEstadosDisponibles = (
 
   useEffect(() => {
     if (autoFetch && id) {
-      void fetchData();
+      fetchData().catch((err) => {
+        console.error('Error en hook de solicitudes:', err);
+      });
     }
   }, [id, autoFetch]);
 
@@ -275,12 +338,12 @@ export const useHistorialSeguimiento = (
   idOrdenServicio: number | null,
   autoFetch = false,
 ): UseHistorialSeguimientoHook => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [historial, setHistorial] = useState<Seguimiento[]>([]);
   const [loading, setLoading] = useState(autoFetch && idOrdenServicio !== null);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!idOrdenServicio) {
       setLoading(false);
       return;
@@ -291,8 +354,58 @@ export const useHistorialSeguimiento = (
       if (token) {
         setSolicitudesAuthToken(token);
       }
-      const data = await solicitudesApiService.getHistorialSeguimiento(idOrdenServicio);
+      
+      // Detectar si es cliente o administrador/empleado
+      const esAdministrativo = tieneRolAdministrativo(user);
+      
+      // Usar el endpoint correcto según el rol
+      const data = esAdministrativo
+        ? await solicitudesApiService.getHistorialSeguimiento(idOrdenServicio)
+        : await solicitudesApiService.getHistorialSeguimientoCliente(idOrdenServicio);
+      
       setHistorial(data);
+    } catch (err) {
+      const message = obtenerMensajeErrorUsuario(err as ApiClientError);
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }, [idOrdenServicio, token, user]);
+
+  useEffect(() => {
+    if (autoFetch && idOrdenServicio) {
+      fetchData().catch((err) => {
+        console.error('Error en hook de solicitudes:', err);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idOrdenServicio, autoFetch]); // fetchData está memoizado, no necesita estar en dependencias
+
+  return { historial, loading, error, refetch: fetchData };
+};
+
+interface UseMisSolicitudesHook {
+  solicitudes: Solicitud[];
+  loading: boolean;
+  error: string | null;
+  refetch: () => Promise<void>;
+}
+
+export const useMisSolicitudes = (autoFetch = true): UseMisSolicitudesHook => {
+  const { token } = useAuth();
+  const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
+  const [loading, setLoading] = useState(autoFetch);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      if (token) {
+        setSolicitudesAuthToken(token);
+      }
+      const data = await solicitudesApiService.getMisSolicitudes();
+      setSolicitudes(data);
     } catch (err) {
       const message = obtenerMensajeErrorUsuario(err as ApiClientError);
       setError(message);
@@ -302,11 +415,13 @@ export const useHistorialSeguimiento = (
   };
 
   useEffect(() => {
-    if (autoFetch && idOrdenServicio) {
-      void fetchData();
+    if (autoFetch) {
+      fetchData().catch((err) => {
+        console.error('Error en hook de mis solicitudes:', err);
+      });
     }
-  }, [idOrdenServicio, autoFetch]);
+  }, [autoFetch]);
 
-  return { historial, loading, error, refetch: fetchData };
+  return { solicitudes, loading, error, refetch: fetchData };
 };
 

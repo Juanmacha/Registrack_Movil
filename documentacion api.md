@@ -31,7 +31,7 @@ Plataforma REST completa para la gestión integral de servicios de registro de m
 
 | Fecha | Mejora | Impacto |
 |-------|--------|---------|
-| **Ene 2026** | 🔐 **Validaciones de Seguridad en Autenticación** | **Rate Limiting:** Protección contra fuerza bruta en login (5 intentos/15min), registro (3 intentos/15min), recuperación de contraseña (3 intentos/15min) y reset de contraseña (5 intentos/15min). **Validación de Contraseñas Comunes:** Bloqueo de más de 50 contraseñas comunes (123456, password, admin123, etc.). **Validación de Estado del Usuario:** Verificación de usuario activo en cada request con token JWT. **Sanitización de Inputs:** Prevención de XSS e inyección en campos de login. **Validación de Fortaleza:** Contraseñas deben tener mínimo 8 caracteres, mayúscula, número y carácter especial. |
+| **Ene 2026** | 🔐 **Validaciones de Seguridad en Autenticación** | **Rate Limiting Mejorado:** Protección contra fuerza bruta por email+IP (no solo IP) - Login: 5 intentos fallidos/5min (no cuenta logins exitosos), Registro: 3 intentos fallidos/5min. Esto evita que un dispositivo bloquee a otros usuarios en la misma red. **Validación de Contraseñas Comunes:** Bloqueo de más de 50 contraseñas comunes (123456, password, admin123, etc.). **Validación de Estado del Usuario:** Verificación de usuario activo en cada request con token JWT. **Sanitización de Inputs:** Prevención de XSS e inyección en campos de login. **Validación de Fortaleza:** Contraseñas deben tener mínimo 8 caracteres, mayúscula, número y carácter especial. |
 | **Ene 2026** | 👥 **Validaciones de Seguridad en Módulo de Empleados** | **Validación de IDs:** Protección contra SQL injection con validación estricta de formato numérico (`/^\d+$/`). **Sistema de Permisos Granular:** Control híbrido para roles principales (roleMiddleware + checkPermiso) y roles personalizados (solo checkPermiso). **Validación de Integridad:** Previene eliminación/desactivación de empleados con asignaciones activas (citas programadas/reprogramadas y solicitudes activas). Rechazo explícito de clientes sin acceso. |
 | **Ene 2026** | 👤 **Validaciones de Seguridad en Módulo de Clientes** | **Validación de IDs:** Protección contra SQL injection con validación estricta de formato numérico (`/^\d+$/`). **Sistema de Permisos Granular:** Control híbrido para roles principales (roleMiddleware + checkPermiso) y roles personalizados (solo checkPermiso). **Validación de Propiedad de Recursos:** Los clientes solo pueden ver/editar sus propios datos (implementado en `obtenerCliente`, `editarCliente`, `editarUsuarioCliente`, `editarEmpresaCliente`). Administradores y empleados tienen acceso completo. |
 | **Ene 2026** | 🏢 **Validaciones de Seguridad en Módulo de Empresas** | **Validación de IDs:** Protección contra SQL injection con validación estricta de formato numérico (`/^\d+$/`). **Sistema de Permisos Granular:** Control híbrido para roles principales (roleMiddleware + checkPermiso) y roles personalizados (solo checkPermiso). **Validación de Unicidad (NIT):** Verifica que el NIT sea único antes de crear empresas, previene duplicados, procesa NIT removiendo caracteres no numéricos, mensajes de error descriptivos con información de empresa existente. Clientes rechazados explícitamente (sin acceso a gestión de empresas). |
@@ -2010,25 +2010,32 @@ Ver sección de **Sistema de Pagos** para más detalles sobre pagos de clientes.
 #### Renovación de marca
 ```json
 {
-  "tipo_titular": "string",
-  "numero_registro_marca": "string",
-  "nombre_marca": "string",
-  "clase_niza": "string",
-  "nombre_razon_social": "string",
-  "documento_nit": "number (entre 1000000000 y 9999999999, sin guión)",
+  "tipo_solicitante": "Natural" | "Jurídica",
+  "nombres_apellidos": "string",
+  "tipo_documento": "string",
+  "numero_documento": "string",
   "direccion": "string",
-  "ciudad": "string",
-  "pais": "string",
-  "correo": "email",
   "telefono": "string",
-  "nombre_representante": "string",
-  "documento_representante": "string",
-  "poder": "base64_string",
-  "logo_marca": "base64_string"
+  "correo": "email",
+  "pais": "string",
+  "nombre_marca": "string",
+  "numero_expediente_marca": "string",
+  "poder_autorizacion": "base64_string",
+  "certificado_renovacion": "base64_string",
+  "logotipo": "base64_string",
+  
+  // Campos condicionales si tipo_solicitante es "Jurídica"
+  "tipo_entidad": "string",
+  "razon_social": "string",
+  "nit_empresa": "number (entre 1000000000 y 9999999999, sin guión)",
+  "representante_legal": "string"
 }
 ```
 
-**⚠️ IMPORTANTE:** El campo `documento_nit` debe ser un **número entero** entre 1000000000 y 9999999999 (10 dígitos). **NO incluir el dígito de verificación con guión**. Ejemplo correcto: `9001234567` (no `"900123456-1"`).
+**⚠️ IMPORTANTE:**
+- `tipo_solicitante` debe ser **"Natural"** o **"Jurídica"**
+- Si `tipo_solicitante` es **"Jurídica"**, los campos `tipo_entidad`, `razon_social`, `nit_empresa` y `representante_legal` son **OBLIGATORIOS**
+- El campo `nit_empresa` debe ser un **número entero** entre 1000000000 y 9999999999 (10 dígitos). **NO incluir el dígito de verificación con guión**. Ejemplo correcto: `9001234567` (no `"900123456-1"`)
 
 **Otros endpoints de solicitudes:**
 - **GET /mias** (auth, cliente): Lista solo las solicitudes del cliente autenticado
@@ -2281,11 +2288,16 @@ const headers = {
 
 #### Validaciones de Seguridad ⭐ **NUEVO - Ene 2026**
 
-**Rate Limiting:**
-- Login: 5 intentos por IP cada 15 minutos
-- Registro: 3 intentos por IP cada 15 minutos
-- Recuperación de contraseña: 3 intentos por IP cada 15 minutos
+**Rate Limiting (Mejorado - Enero 2026):**
+- Login: 5 intentos fallidos por email+IP cada 5 minutos (no cuenta logins exitosos) ✅
+- Registro: 3 intentos fallidos por email+IP cada 5 minutos ✅
+- Recuperación de contraseña: 3 solicitudes por IP cada 15 minutos
 - Reset de contraseña: 5 intentos por IP cada 15 minutos
+
+**✅ Mejoras implementadas:**
+- Rate limiting por email+IP (no solo IP) - Evita que un dispositivo bloquee a otros usuarios
+- Bloqueo reducido a 5 minutos para mejor experiencia de usuario
+- Logins exitosos no cuentan hacia el límite
 
 **Validaciones de Contraseña:**
 - Bloqueo de contraseñas comunes (123456, password, admin123, etc.)
@@ -3093,27 +3105,54 @@ curl -X POST "http://localhost:3000/api/gestion-solicitudes/crear/Certificación
 
 #### 14. Crear solicitud - Renovación de marca ⭐ **ACTUALIZADO**
 ```bash
+# Ejemplo para Persona Natural
 curl -X POST "http://localhost:3000/api/gestion-solicitudes/crear/Renovación%20de%20marca" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <TOKEN>" \
   -d '{
-    "tipo_titular": "Persona Jurídica",
-    "numero_registro_marca": "12345",
-    "nombre_marca": "MiMarca",
-    "clase_niza": "35",
-    "nombre_razon_social": "Mi Empresa SAS",
-    "documento_nit": "900123456-1",
+    "id_cliente": 1,
+    "tipo_solicitante": "Natural",
+    "nombres_apellidos": "Juan Carlos Pérez López",
+    "tipo_documento": "Cédula de Ciudadanía",
+    "numero_documento": "1234567890",
     "direccion": "Calle 123 #45-67",
-    "ciudad": "Bogotá",
-    "pais": "Colombia",
-    "correo": "empresa@example.com",
     "telefono": "3001234567",
-    "nombre_representante": "Juan Carlos Pérez López",
-    "documento_representante": "12345678",
-    "poder": "data:application/pdf;base64,JVBERi0xLjQKJcOkw7zDtsO...",
-    "logo_marca": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+    "correo": "juan.perez@example.com",
+    "pais": "Colombia",
+    "nombre_marca": "MiMarca",
+    "numero_expediente_marca": "12345",
+    "poder_autorizacion": "data:application/pdf;base64,JVBERi0xLjQKJcOkw7zDtsO...",
+    "certificado_renovacion": "data:application/pdf;base64,JVBERi0xLjQKJcOkw7zDtsO...",
+    "logotipo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+  }'
+
+# Ejemplo para Persona Jurídica
+curl -X POST "http://localhost:3000/api/gestion-solicitudes/crear/Renovación%20de%20marca" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN>" \
+  -d '{
+    "id_cliente": 1,
+    "tipo_solicitante": "Jurídica",
+    "nombres_apellidos": "Juan Carlos Pérez López",
+    "tipo_documento": "Cédula de Ciudadanía",
+    "numero_documento": "1234567890",
+    "direccion": "Calle 123 #45-67",
+    "telefono": "3001234567",
+    "correo": "empresa@example.com",
+    "pais": "Colombia",
+    "nombre_marca": "MiMarca",
+    "numero_expediente_marca": "12345",
+    "poder_autorizacion": "data:application/pdf;base64,JVBERi0xLjQKJcOkw7zDtsO...",
+    "certificado_renovacion": "data:application/pdf;base64,JVBERi0xLjQKJcOkw7zDtsO...",
+    "logotipo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+    "tipo_entidad": "SAS",
+    "razon_social": "Mi Empresa SAS",
+    "nit_empresa": 9001234567,
+    "representante_legal": "Juan Carlos Pérez López"
   }'
 ```
+
+**⚠️ NOTA:** Los campos `tipo_entidad`, `razon_social`, `nit_empresa` y `representante_legal` son **OBLIGATORIOS** solo si `tipo_solicitante` es `"Jurídica"`.
 
 #### 15. Obtener mis solicitudes (Cliente) ⭐ **ACTUALIZADO**
 ```bash
@@ -6290,13 +6329,19 @@ Este script demuestra todas las mejoras en los mensajes de la API.
 
 ### Validaciones de Seguridad en Autenticación ⭐ **NUEVO - Ene 2026**
 
-#### 1. Rate Limiting (Protección contra Fuerza Bruta)
-- **Login:** 5 intentos por IP cada 15 minutos
-- **Registro:** 3 intentos por IP cada 15 minutos
-- **Recuperación de Contraseña:** 3 intentos por IP cada 15 minutos
+#### 1. Rate Limiting (Protección contra Fuerza Bruta) ⭐ **MEJORADO - Ene 2026**
+- **Login:** 5 intentos fallidos por email+IP cada 5 minutos (no cuenta logins exitosos) ✅
+- **Registro:** 3 intentos fallidos por email+IP cada 5 minutos ✅
+- **Recuperación de Contraseña:** 3 solicitudes por IP cada 15 minutos
 - **Reset de Contraseña:** 5 intentos por IP cada 15 minutos
 - **Respuesta:** Error 429 (Too Many Requests) con mensaje descriptivo
 - **Headers:** `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`
+
+**✅ Mejoras implementadas:**
+- **Rate limiting por email+IP:** No bloquea a otros usuarios en la misma red
+- **Bloqueo reducido:** 5 minutos en lugar de 15 para mejor UX
+- **Logins exitosos no cuentan:** Solo se cuentan intentos fallidos
+- **Protección mejorada:** Cada usuario tiene su propio contador independiente
 
 #### 2. Validación de Contraseñas Comunes
 - **Lista de 50+ contraseñas prohibidas:** 123456, password, admin123, qwerty, etc.

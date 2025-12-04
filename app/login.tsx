@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Link, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 import CustomAlert from '@/components/CustomAlert';
 
@@ -61,9 +62,13 @@ export default function LoginScreen() {
       console.log('🔍 DEBUG LOGIN - Es array?', Array.isArray(usuario.roles));
       console.log('🔍 DEBUG LOGIN - Es administrativo?', tieneRolAdministrativo(usuario));
       
-      const destination = tieneRolAdministrativo(usuario) ? '/dashboard' : '/(tabs)/explore';
-      console.log('🔍 DEBUG LOGIN - Destino:', destination);
-      router.replace(destination);
+      // Redirigir según el rol del usuario
+      if (tieneRolAdministrativo(usuario)) {
+        router.replace('/dashboard');
+      } else {
+        // Para clientes, redirigir a Mis Procesos (primera opción del menú de cliente)
+        router.replace('/(tabs)/mis-procesos');
+      }
     } catch (error) {
       let title = 'No pudimos iniciar sesión';
       let message = 'Revisa tus credenciales e inténtalo de nuevo.';
@@ -91,6 +96,13 @@ export default function LoginScreen() {
   return (
     <View style={authStyles.container}>
       <View style={authStyles.card}>
+        <View style={styles.logoContainer}>
+          <Image 
+            source={require('@/assets/images/logo.png')} 
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </View>
         <Text style={authStyles.title}>Bienvenido a Registrack</Text>
         <Text style={authStyles.subtitle}>Ingresa tus credenciales para continuar</Text>
 
@@ -119,9 +131,13 @@ export default function LoginScreen() {
           />
           <TouchableOpacity
             accessibilityRole="button"
-            style={{ position: 'absolute', right: 12, top: 12 }}
+            style={{ position: 'absolute', right: 12, top: 12, padding: 4, minWidth: 32, alignItems: 'center', justifyContent: 'center' }}
             onPress={() => setShowPassword((prev) => !prev)}>
-            <Text style={authStyles.link}>{showPassword ? 'Ocultar' : 'Ver'}</Text>
+            <Ionicons 
+              name={showPassword ? 'eye' : 'eye-off'} 
+              size={20} 
+              color={colors.gray} 
+            />
           </TouchableOpacity>
         </View>
         {errors.contrasena ? <Text style={authStyles.errorText}>{errors.contrasena}</Text> : null}
@@ -137,7 +153,7 @@ export default function LoginScreen() {
           <Text style={{ color: colors.gray }}>¿Olvidaste tu contraseña?</Text>
           <Link href="/forgot-password" asChild>
             <TouchableOpacity>
-              <Text style={authStyles.link}>Recupérala</Text>
+              <Text style={authStyles.link}>Recuperar contraseña</Text>
             </TouchableOpacity>
           </Link>
         </View>
@@ -162,4 +178,15 @@ export default function LoginScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  logo: {
+    width: 120,
+    height: 120,
+  },
+});
 

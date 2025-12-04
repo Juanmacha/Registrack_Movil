@@ -595,6 +595,211 @@ const FORMULARIOS_POR_SERVICIO = {
 
 ---
 
+## 19. Asignar Empleado a Solicitudes Anuladas/Finalizadas ✅
+
+**Endpoint**: `PUT /api/gestion-solicitudes/asignar-empleado/:id`
+
+**Funcionalidad**: Se puede asignar o reasignar empleados a solicitudes que están en estado "Anulada", "Anulado", "Finalizada", "Finalizado", "Rechazada" o "Rechazado".
+
+**Confirmación**:
+- ✅ El mismo endpoint funciona para solicitudes en proceso y finalizadas/anuladas
+- ✅ No hay restricción de estado en el backend para asignar empleados
+- ✅ Se puede reasignar empleado incluso si la solicitud ya está finalizada o anulada
+- ✅ El endpoint envía notificaciones por email al cliente, nuevo empleado y empleado anterior (si existe)
+
+**Payload**:
+```json
+{
+  "id_empleado": 3
+}
+```
+
+**Respuesta Exitosa** (200):
+```json
+{
+  "success": true,
+  "mensaje": "Empleado asignado exitosamente",
+  "data": {
+    "solicitud_id": 123,
+    "empleado_asignado": {
+      "id_empleado": 3,
+      "nombre": "María García López",
+      "correo": "maria@email.com"
+    },
+    "empleado_anterior": {
+      "id_empleado": 2,
+      "nombre": "Juan Pérez"
+    }
+  }
+}
+```
+
+**Código de uso** (`solicitudesApiService.js` líneas 637-654):
+```javascript
+async asignarEmpleado(solicitudId, empleadoId, token) {
+  const resultado = await this.makeRequest(`/api/gestion-solicitudes/asignar-empleado/${solicitudId}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ id_empleado: empleadoId })
+  });
+  return resultado;
+}
+```
+
+**Nota**: Aunque en el frontend web (`tablaVentasFin.jsx`) no se muestra la opción de asignar empleado en el menú de acciones para solicitudes finalizadas, el endpoint del backend sí permite esta operación. En la app móvil se puede implementar esta funcionalidad.
+
+---
+
+## 20. Descargar Archivos de Seguimiento ✅
+
+**Endpoint**: `GET /api/seguimiento/:idSeguimiento/descargar-archivos`
+
+**Funcionalidad**: Descarga todos los archivos adjuntos de un seguimiento específico en un archivo ZIP.
+
+**Código exacto** (`seguimientoApiService.js` líneas 247-292):
+```javascript
+async descargarArchivosSeguimiento(idSeguimiento, token) {
+  const url = `${this.baseURL}/api/seguimiento/${idSeguimiento}/descargar-archivos`;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    let errorData = {};
+    try {
+      errorData = JSON.parse(errorText);
+    } catch {
+      errorData = { mensaje: errorText || `Error ${response.status}: ${response.statusText}` };
+    }
+    throw new Error(errorData.mensaje || errorData.error || `Error ${response.status}: ${response.statusText}`);
+  }
+
+  // Obtener el blob del archivo ZIP
+  const blob = await response.blob();
+  
+  // Obtener el nombre del archivo del header Content-Disposition si está disponible
+  const contentDisposition = response.headers.get('Content-Disposition');
+  let filename = `seguimiento_${idSeguimiento}_archivos.zip`;
+  if (contentDisposition) {
+    const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+    if (filenameMatch && filenameMatch[1]) {
+      filename = filenameMatch[1].replace(/['"]/g, '');
+    }
+  }
+
+  return { blob, filename };
+}
+```
+
+**Uso en frontend** (`tablaVentasProceso.jsx` líneas 196-224):
+```javascript
+const descargarArchivosSeguimiento = async (idSeguimiento) => {
+  try {
+    Swal.fire({
+      title: 'Descargando archivos...',
+      text: 'Por favor espera mientras se preparan los archivos',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
+    const token = getToken();
+    if (!token) {
+      throw new Error('No hay token de autenticación. Por favor inicia sesión nuevamente.');
+    }
+
+    const result = await seguimientoApiService.descargarArchivosSeguimiento(idSeguimiento, token);
+    
+    // Descargar el archivo
+    const url = window.URL.createObjectURL(result.blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = result.filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+
+    Swal.close();
+    Swal.fire({
+      icon: 'success',
+      title: 'Archivos descargados',
+      text: `Los archivos del seguimiento se han descargado correctamente.`,
+      customClass: { popup: 'swal2-border-radius' }
+    });
+  } catch (error) {
+    Swal.close();
+    let errorMessage = 'No se pudieron descargar los archivos.';
+    if (error.message) {
+      errorMessage = error.message;
+    } else if (error.response?.status === 404) {
+      errorMessage = 'No se encontraron archivos asociados a este seguimiento.';
+    }
+    Swal.fire({
+      icon: 'error',
+      title: 'Error al descargar',
+      text: errorMessage,
+      customClass: { popup: 'swal2-border-radius' }
+    });
+  }
+};
+```
+
+**Obtener seguimientos con archivos** (`tablaVentasProceso.jsx` líneas 173-194):
+```javascript
+const cargarSeguimientosParaDescarga = async (idOrdenServicio) => {
+  try {
+    setCargandoSeguimientos(true);
+    const token = getToken();
+    if (!token) {
+      AlertService.error('Error', 'No hay sesión activa');
+      return;
+    }
+
+    console.log('🔧 [TablaVentasProceso] Cargando seguimientos para orden:', idOrdenServicio);
+    const historial = await seguimientoApiService.getHistorial(idOrdenServicio, token);
+    
+    // Filtrar solo seguimientos que tienen documentos adjuntos
+    const seguimientosConArchivos = historial.filter(s => {
+      const docs = s.documentos_adjuntos;
+      return docs && docs !== null && docs !== '' && docs !== 'null';
+    });
+    
+    console.log('✅ [TablaVentasProceso] Seguimientos con archivos:', seguimientosConArchivos.length);
+    setSeguimientosDisponibles(seguimientosConArchivos);
+  } catch (error) {
+    console.error('❌ [TablaVentasProceso] Error cargando seguimientos:', error);
+    AlertService.error('Error', 'No se pudieron cargar los seguimientos');
+    setSeguimientosDisponibles([]);
+  } finally {
+    setCargandoSeguimientos(false);
+  }
+};
+```
+
+**Confirmaciones**:
+- ✅ Descarga todos los archivos adjuntos de un seguimiento en un ZIP
+- ✅ El ZIP incluye un archivo README.txt con información del seguimiento
+- ✅ Nombre por defecto: `seguimiento_{idSeguimiento}_archivos.zip`
+- ✅ El nombre puede venir en el header `Content-Disposition`
+- ✅ Content-Type: `application/zip` o `application/octet-stream`
+- ✅ Manejo de errores: 404 (no hay archivos), 403/401 (sin permisos)
+- ✅ Solo disponible para administradores y empleados
+- ✅ Se muestra un modal para seleccionar qué seguimiento descargar (solo los que tienen archivos)
+
+**Estructura del ZIP**:
+- Todos los archivos adjuntos del seguimiento (convertidos de Base64 a archivos)
+- Un archivo `README.txt` con información del seguimiento (título, descripción, fecha, usuario, etc.)
+
+---
+
 ## 📋 Resumen de Endpoints
 
 | Endpoint | Método | Respuesta | Notas |
@@ -604,14 +809,15 @@ const FORMULARIOS_POR_SERVICIO = {
 | `/api/gestion-solicitudes/crear/:servicioId` | POST | Objeto | Requiere `id_cliente` para admin |
 | `/api/gestion-solicitudes/editar/:id` | PUT | Objeto | Solo campos editables |
 | `/api/gestion-solicitudes/anular/:id` | PUT | Objeto | Body: `{ motivo: "string" }` |
-| `/api/gestion-solicitudes/asignar-empleado/:id` | PUT | Objeto | Body: `{ id_empleado: number }` |
+| `/api/gestion-solicitudes/asignar-empleado/:id` | PUT | Objeto | Body: `{ id_empleado: number }` - **Funciona también para anuladas/finalizadas** |
 | `/api/gestion-solicitudes/:id/estados-disponibles` | GET | Objeto con `data` | Estados disponibles |
-| `/api/gestion-solicitudes/:id/descargar-archivos` | GET | Blob (ZIP) | Descarga directa |
+| `/api/gestion-solicitudes/:id/descargar-archivos` | GET | Blob (ZIP) | Descarga directa - Archivos de la solicitud |
 | `/api/gestion-clientes` | GET | Array directo | Todos los clientes |
 | `/api/gestion-empleados` | GET | Objeto con `data` | Filtrar `estado_empleado === true` |
 | `/api/servicios` | GET | Array directo | Todos los servicios |
 | `/api/seguimiento/crear` | POST | Objeto | Body con `documentos_adjuntos` opcional |
 | `/api/seguimiento/historial/:id` | GET | Array directo | Historial completo |
+| `/api/seguimiento/:id/descargar-archivos` | GET | Blob (ZIP) | **NUEVO** - Descarga archivos de un seguimiento específico |
 
 ---
 

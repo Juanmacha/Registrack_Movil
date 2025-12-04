@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Alert, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { useRouter } from 'expo-router';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { useSolicitudes } from '@/hooks/useSolicitudes';
+import { useSolicitudesFinalizadas } from '@/hooks/useSolicitudes';
 import { solicitudesApiService } from '@/services/solicitudesApiService';
 import { colors } from '@/styles/authStyles';
 import { Solicitud } from '@/types/solicitudes';
@@ -13,26 +13,18 @@ import { obtenerMensajeErrorUsuario } from '@/utils/apiError';
 import { tieneRolAdministrativo } from '@/utils/roles';
 
 import AdminMenu from '@/components/AdminMenu';
-import AnularSolicitudModal from '@/components/solicitudes/AnularSolicitudModal';
 import AsignarEmpleadoModal from '@/components/solicitudes/AsignarEmpleadoModal';
-import CrearSolicitudModal from '@/components/solicitudes/CrearSolicitudModal';
 import DescargarArchivosSeguimientoModal from '@/components/solicitudes/DescargarArchivosSeguimientoModal';
 import DetalleSolicitudModal from '@/components/solicitudes/DetalleSolicitudModal';
-import EditarSolicitudModal from '@/components/solicitudes/EditarSolicitudModal';
-import SeguimientoModal from '@/components/solicitudes/SeguimientoModal';
 import SolicitudesList from '@/components/solicitudes/SolicitudesList';
 
-export default function SolicitudesScreen() {
+export default function SolicitudesFinalizadasScreen() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
-  const { solicitudes, loading, error, refetch } = useSolicitudes();
+  const { solicitudes, loading, error, refetch } = useSolicitudesFinalizadas();
   const [solicitudSeleccionada, setSolicitudSeleccionada] = useState<Solicitud | null>(null);
   const [mostrarDetalle, setMostrarDetalle] = useState(false);
-  const [mostrarAnular, setMostrarAnular] = useState(false);
   const [mostrarAsignarEmpleado, setMostrarAsignarEmpleado] = useState(false);
-  const [mostrarSeguimiento, setMostrarSeguimiento] = useState(false);
-  const [mostrarCrear, setMostrarCrear] = useState(false);
-  const [mostrarEditar, setMostrarEditar] = useState(false);
   const [mostrarDescargarArchivos, setMostrarDescargarArchivos] = useState(false);
 
   if (authLoading) {
@@ -61,23 +53,9 @@ export default function SolicitudesScreen() {
     setMostrarDetalle(true);
   };
 
-  const handleCrearSolicitud = () => {
-    setMostrarCrear(true);
-  };
-
   const handleCloseDetalle = () => {
     setMostrarDetalle(false);
     setSolicitudSeleccionada(null);
-  };
-
-  const handleEditar = () => {
-    setMostrarDetalle(false);
-    setMostrarEditar(true);
-  };
-
-  const handleAnular = () => {
-    setMostrarDetalle(false);
-    setMostrarAnular(true);
   };
 
   const handleAsignarEmpleado = () => {
@@ -85,13 +63,7 @@ export default function SolicitudesScreen() {
     setMostrarAsignarEmpleado(true);
   };
 
-  const handleAgregarSeguimiento = () => {
-    setMostrarDetalle(false);
-    setMostrarSeguimiento(true);
-  };
-
   const handleSuccess = () => {
-    // Refrescar lista después de cualquier acción exitosa
     refetch();
   };
 
@@ -163,15 +135,9 @@ export default function SolicitudesScreen() {
     <View style={styles.wrapper}>
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <Image source={require('@/assets/images/logo.png')} style={styles.logo} />
-            <View style={styles.headerTextContainer}>
-              <Text style={styles.headerTitle}>Solicitudes</Text>
-              <Text style={styles.headerSubtitle}>Gestión de solicitudes de servicios</Text>
-            </View>
-            <TouchableOpacity style={styles.createButton} onPress={handleCrearSolicitud}>
-              <Text style={styles.createButtonText}>+ Crear</Text>
-            </TouchableOpacity>
+          <View>
+            <Text style={styles.headerTitle}>Solicitudes Finalizadas</Text>
+            <Text style={styles.headerSubtitle}>Solicitudes completadas, anuladas o rechazadas</Text>
           </View>
         </View>
 
@@ -185,79 +151,36 @@ export default function SolicitudesScreen() {
           />
         </View>
 
-      {/* Modal de Detalles */}
-      <DetalleSolicitudModal
-        visible={mostrarDetalle}
-        solicitud={solicitudSeleccionada}
-        onClose={handleCloseDetalle}
-        onEditar={handleEditar}
-        onAnular={handleAnular}
-        onAsignarEmpleado={handleAsignarEmpleado}
-        onAgregarSeguimiento={handleAgregarSeguimiento}
-        onDescargarArchivos={handleDescargarArchivos}
-        onDescargarArchivosZip={handleDescargarArchivosZip}
-      />
+        {/* Modal de Detalles */}
+        <DetalleSolicitudModal
+          visible={mostrarDetalle}
+          solicitud={solicitudSeleccionada}
+          onClose={handleCloseDetalle}
+          onAsignarEmpleado={handleAsignarEmpleado}
+          onDescargarArchivos={handleDescargarArchivos}
+          onDescargarArchivosZip={handleDescargarArchivosZip}
+        />
 
-      {/* Modal de Anular */}
-      <AnularSolicitudModal
-        visible={mostrarAnular}
-        solicitud={solicitudSeleccionada}
-        onClose={() => {
-          setMostrarAnular(false);
-          setSolicitudSeleccionada(null);
-        }}
-        onSuccess={handleSuccess}
-      />
+        {/* Modal de Asignar Empleado */}
+        <AsignarEmpleadoModal
+          visible={mostrarAsignarEmpleado}
+          solicitud={solicitudSeleccionada}
+          onClose={() => {
+            setMostrarAsignarEmpleado(false);
+            setSolicitudSeleccionada(null);
+          }}
+          onSuccess={handleSuccess}
+        />
 
-      {/* Modal de Asignar Empleado */}
-      <AsignarEmpleadoModal
-        visible={mostrarAsignarEmpleado}
-        solicitud={solicitudSeleccionada}
-        onClose={() => {
-          setMostrarAsignarEmpleado(false);
-          setSolicitudSeleccionada(null);
-        }}
-        onSuccess={handleSuccess}
-      />
-
-      {/* Modal de Seguimiento */}
-      <SeguimientoModal
-        visible={mostrarSeguimiento}
-        solicitud={solicitudSeleccionada}
-        onClose={() => {
-          setMostrarSeguimiento(false);
-          setSolicitudSeleccionada(null);
-        }}
-        onSuccess={handleSuccess}
-      />
-
-      {/* Modal de Crear Solicitud */}
-      <CrearSolicitudModal
-        visible={mostrarCrear}
-        onClose={() => setMostrarCrear(false)}
-        onSuccess={handleSuccess}
-      />
-
-      {/* Modal de Editar Solicitud */}
-      <EditarSolicitudModal
-        visible={mostrarEditar}
-        solicitud={solicitudSeleccionada}
-        onClose={() => {
-          setMostrarEditar(false);
-          setSolicitudSeleccionada(null);
-        }}
-        onSuccess={handleSuccess}
-      />
-
-      {/* Modal de Descargar Archivos de Seguimiento */}
-      <DescargarArchivosSeguimientoModal
-        visible={mostrarDescargarArchivos}
-        solicitud={solicitudSeleccionada}
-        onClose={() => {
-          setMostrarDescargarArchivos(false);
-          setSolicitudSeleccionada(null);
-        }}
-      />
+        {/* Modal de Descargar Archivos de Seguimiento */}
+        <DescargarArchivosSeguimientoModal
+          visible={mostrarDescargarArchivos}
+          solicitud={solicitudSeleccionada}
+          onClose={() => {
+            setMostrarDescargarArchivos(false);
+            setSolicitudSeleccionada(null);
+          }}
+        />
       </ScrollView>
       <AdminMenu />
     </View>
@@ -296,68 +219,20 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  logo: {
-    width: 40,
-    height: 40,
-    resizeMode: 'contain',
-    flexShrink: 0,
-  },
-  headerTextContainer: {
-    flex: 1,
-    minWidth: 200,
-    flexShrink: 1,
-  },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700',
     color: colors.primaryDark,
     marginBottom: 4,
     letterSpacing: 0.5,
   },
   headerSubtitle: {
-    fontSize: 13,
+    fontSize: 14,
     color: colors.gray,
     fontWeight: '500',
-    lineHeight: 18,
-  },
-  createButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: colors.primaryDark,
-    borderRadius: 8,
-    flexShrink: 0,
-    marginLeft: -28,
-    ...Platform.select({
-      web: { boxShadow: '0px 2px 8px rgba(8, 56, 116, 0.2)' },
-      default: {
-        shadowColor: colors.primaryDark,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 3,
-      },
-    }),
-  },
-  createButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-    letterSpacing: 0.5,
   },
   section: {
     marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.primaryDark,
-    marginBottom: 16,
-    letterSpacing: 0.3,
   },
   errorText: {
     fontSize: 16,

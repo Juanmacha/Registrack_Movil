@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Link, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 import CustomAlert from '@/components/CustomAlert';
 import { authApiService } from '@/services/authApiService';
@@ -14,6 +15,8 @@ export default function ResetPasswordScreen() {
   const [token, setToken] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [alertConfig, setAlertConfig] = useState({ visible: false, title: '', message: '', success: false });
@@ -92,32 +95,56 @@ export default function ResetPasswordScreen() {
         <Text style={authStyles.subtitle}>Evita contraseñas usadas anteriormente para proteger tu cuenta.</Text>
 
         <Text style={authStyles.inputLabel}>Nueva contraseña</Text>
-        <TextInput
-          style={[authStyles.input, errors.password && authStyles.inputError]}
-          placeholder="********"
-          placeholderTextColor={colors.gray}
-          secureTextEntry
-          value={password}
-          onChangeText={(text) => {
-            setPassword(text);
-            setErrors((prev) => ({ ...prev, password: '' }));
-          }}
-        />
+        <View>
+          <TextInput
+            style={[authStyles.input, errors.password && authStyles.inputError]}
+            placeholder="********"
+            placeholderTextColor={colors.gray}
+            secureTextEntry={!showPassword}
+            value={password}
+            onChangeText={(text) => {
+              setPassword(text);
+              setErrors((prev) => ({ ...prev, password: '' }));
+            }}
+          />
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={{ position: 'absolute', right: 12, top: 12, padding: 4, minWidth: 32, alignItems: 'center', justifyContent: 'center' }}
+            onPress={() => setShowPassword((prev) => !prev)}>
+            <Ionicons 
+              name={showPassword ? 'eye' : 'eye-off'} 
+              size={20} 
+              color={colors.gray} 
+            />
+          </TouchableOpacity>
+        </View>
         <Text style={authStyles.helperText}>{getPasswordRequirementsShort()}</Text>
         {errors.password ? <Text style={authStyles.errorText}>{errors.password}</Text> : null}
 
         <Text style={authStyles.inputLabel}>Confirmar contraseña</Text>
-        <TextInput
-          style={[authStyles.input, errors.confirm && authStyles.inputError]}
-          placeholder="********"
-          placeholderTextColor={colors.gray}
-          secureTextEntry
-          value={confirm}
-          onChangeText={(text) => {
-            setConfirm(text);
-            setErrors((prev) => ({ ...prev, confirm: '' }));
-          }}
-        />
+        <View>
+          <TextInput
+            style={[authStyles.input, errors.confirm && authStyles.inputError]}
+            placeholder="********"
+            placeholderTextColor={colors.gray}
+            secureTextEntry={!showConfirmPassword}
+            value={confirm}
+            onChangeText={(text) => {
+              setConfirm(text);
+              setErrors((prev) => ({ ...prev, confirm: '' }));
+            }}
+          />
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={{ position: 'absolute', right: 12, top: 12, padding: 4, minWidth: 32, alignItems: 'center', justifyContent: 'center' }}
+            onPress={() => setShowConfirmPassword((prev) => !prev)}>
+            <Ionicons 
+              name={showConfirmPassword ? 'eye' : 'eye-off'} 
+              size={20} 
+              color={colors.gray} 
+            />
+          </TouchableOpacity>
+        </View>
         {errors.confirm ? <Text style={authStyles.errorText}>{errors.confirm}</Text> : null}
 
         <TouchableOpacity style={[authStyles.button, loading && { opacity: 0.8 }]} disabled={loading} onPress={handleSubmit}>

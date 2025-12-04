@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "RegistrackMovil",
+    "name": "Registrack",
     "slug": "RegistrackMovil",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -23,7 +23,13 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/logo.png",
+      "name": "Registrack",
+      "shortName": "Registrack",
+      "lang": "es",
+      "scope": "/",
+      "themeColor": "#083874",
+      "backgroundColor": "#ffffff"
     },
     "plugins": [
       "expo-router",

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { PERIODOS, PERIODO_DEFAULT } from '@/constants/periodos';
@@ -19,9 +19,126 @@ const SERVICIO_COLORS: Record<string, string> = {
   'Cesión de Marca': '#b6e61c',
 };
 
+const DEFAULT_COLORS = ['#347cf7', '#ff7d1a', '#22c55e', '#a259e6', '#1cc6e6', '#b6e61c'];
+
+/**
+ * Obtiene el color para un servicio según su nombre
+ */
+const obtenerColorServicio = (nombreServicio: string, index: number = 0): string => {
+  if (!nombreServicio) return DEFAULT_COLORS[index % DEFAULT_COLORS.length];
+  
+  const nombreLower = nombreServicio.toLowerCase();
+  
+  // Buscar coincidencia parcial
+  for (const [key, color] of Object.entries(SERVICIO_COLORS)) {
+    if (nombreLower.includes(key.toLowerCase()) || key.toLowerCase().includes(nombreLower)) {
+      return color;
+    }
+  }
+  
+  // Si no hay coincidencia, usar color por defecto
+  return DEFAULT_COLORS[index % DEFAULT_COLORS.length];
+};
+
+/**
+ * Transforma los datos de la API al formato de la gráfica
+ * Prioriza el nuevo campo distribucion_por_servicio
+ */
+const transformarDatosAPI = (apiData: any) => {
+  if (!apiData) return null;
+
+  // ✅ PRIORIDAD 1: Nuevo campo distribucion_por_servicio
+  if (apiData.distribucion_por_servicio) {
+    const distribucion = apiData.distribucion_por_servicio;
+    
+    if (distribucion.servicios && Array.isArray(distribucion.servicios) && distribucion.servicios.length > 0) {
+      const servicios = distribucion.servicios;
+      
+      // Extraer labels, values y porcentajes directamente
+      const labels = servicios.map((item: any) => item.nombre_servicio || 'Servicio');
+      const values = servicios.map((item: any) => item.total_ingresos || 0);
+      const porcentajes = servicios.map((item: any) => item.porcentaje || 0);
+      
+      // Asignar colores según el nombre del servicio
+      const colors = labels.map((label: string, index: number) => obtenerColorServicio(label, index));
+      
+      return {
+        labels,
+        values,
+        colors,
+        porcentajes,
+        totalIngresos: distribucion.total_ingresos || 0,
+      };
+    }
+  }
+
+  // Estructuras legacy (compatibilidad hacia atrás)
+  let ingresosPorServicio: Array<{ nombre: string; ingresos: number }> = [];
+  
+  if (apiData.ingresos_por_servicio && Array.isArray(apiData.ingresos_por_servicio)) {
+    ingresosPorServicio = apiData.ingresos_por_servicio;
+  } else if (apiData.ingresos_por_mes && Array.isArray(apiData.ingresos_por_mes)) {
+    // Calcular desde ingresos_por_mes
+    const serviciosMap = new Map<string, number>();
+    
+    apiData.ingresos_por_mes.forEach((mes: any) => {
+      if (mes.servicios && Array.isArray(mes.servicios)) {
+        mes.servicios.forEach((servicio: { nombre: string; ingresos: number }) => {
+          const current = serviciosMap.get(servicio.nombre) || 0;
+          serviciosMap.set(servicio.nombre, current + servicio.ingresos);
+        });
+      }
+    });
+    
+    ingresosPorServicio = Array.from(serviciosMap.entries()).map(([nombre, ingresos]) => ({
+      nombre,
+      ingresos,
+    }));
+  }
+  
+  if (ingresosPorServicio.length === 0) {
+    return null;
+  }
+
+  // Procesar estructura legacy
+  const labels = ingresosPorServicio.map(item => item.nombre || 'Servicio');
+  const values = ingresosPorServicio.map(item => item.ingresos || 0);
+  const colors = labels.map((label, index) => obtenerColorServicio(label, index));
+  
+  // Calcular porcentajes manualmente para estructura legacy
+  const total = values.reduce((a, b) => a + b, 0);
+  const porcentajes = values.map(val => total > 0 ? (val / total) * 100 : 0);
+  
+  return {
+    labels,
+    values,
+    colors,
+    porcentajes,
+    totalIngresos: total,
+  };
+};
+
 export default function IngresosChart() {
   const [periodo, setPeriodo] = useState<PeriodoValue>(PERIODO_DEFAULT);
   const { data, loading, error, refetch } = useDashboardIngresos(periodo);
+
+  // Transformar datos de la API
+  const datosGrafica = useMemo(() => {
+    if (!data) return null;
+    return transformarDatosAPI(data);
+  }, [data]);
+
+  // Calcular total
+  const totalIngresos = useMemo(() => {
+    if (!datosGrafica) return 0;
+    return datosGrafica.totalIngresos || datosGrafica.values.reduce((a, b) => a + b, 0);
+  }, [datosGrafica]);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(
+      amount,
+    );
+  };
 
   if (loading) {
     return (
@@ -41,29 +158,7 @@ export default function IngresosChart() {
     );
   }
 
-  // Calcular ingresos por servicio si no vienen directamente
-  let ingresosPorServicio = data?.ingresos_por_servicio || [];
-  
-  // Si no hay ingresos_por_servicio, calcular desde ingresos_por_mes
-  if (ingresosPorServicio.length === 0 && data?.ingresos_por_mes && data.ingresos_por_mes.length > 0) {
-    const serviciosMap = new Map<string, number>();
-    
-    data.ingresos_por_mes.forEach((mes) => {
-      if (mes.servicios && Array.isArray(mes.servicios)) {
-        mes.servicios.forEach((servicio: { nombre: string; ingresos: number }) => {
-          const current = serviciosMap.get(servicio.nombre) || 0;
-          serviciosMap.set(servicio.nombre, current + servicio.ingresos);
-        });
-      }
-    });
-    
-    ingresosPorServicio = Array.from(serviciosMap.entries()).map(([nombre, ingresos]) => ({
-      nombre,
-      ingresos,
-    }));
-  }
-
-  if (!data || ingresosPorServicio.length === 0) {
+  if (!datosGrafica || datosGrafica.labels.length === 0) {
     return (
       <Card>
         <Text style={styles.title}>Distribución de Ingresos</Text>
@@ -71,14 +166,6 @@ export default function IngresosChart() {
       </Card>
     );
   }
-
-  const totalIngresos = data.total_ingresos || ingresosPorServicio.reduce((sum, item) => sum + item.ingresos, 0);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(
-      amount,
-    );
-  };
 
   return (
     <Card>
@@ -102,16 +189,21 @@ export default function IngresosChart() {
       </View>
 
       <ScrollView style={styles.legendContainer} nestedScrollEnabled>
-        {ingresosPorServicio.map((item, index) => {
-          const porcentaje = totalIngresos > 0 ? ((item.ingresos / totalIngresos) * 100).toFixed(1) : '0';
-          const color = SERVICIO_COLORS[item.nombre] || `#${Math.floor(Math.random() * 16777215).toString(16)}`;
+        {datosGrafica.labels.map((label, index) => {
+          // Usar porcentaje del API si está disponible, sino calcularlo
+          const porcentaje = datosGrafica.porcentajes && datosGrafica.porcentajes[index] !== null && datosGrafica.porcentajes[index] !== undefined
+            ? datosGrafica.porcentajes[index].toFixed(1)
+            : (totalIngresos > 0 ? ((datosGrafica.values[index] / totalIngresos) * 100).toFixed(1) : '0.0');
+          
+          const color = datosGrafica.colors[index];
+          const valor = datosGrafica.values[index];
 
           return (
-            <View key={index} style={styles.legendItem}>
+            <View key={`${label}-${index}`} style={styles.legendItem}>
               <View style={[styles.colorIndicator, { backgroundColor: color }]} />
               <View style={styles.legendContent}>
-                <Text style={styles.legendName}>{item.nombre}</Text>
-                <Text style={styles.legendAmount}>{formatCurrency(item.ingresos)}</Text>
+                <Text style={styles.legendName}>{label}</Text>
+                <Text style={styles.legendAmount}>{formatCurrency(valor)}</Text>
               </View>
               <Text style={styles.legendPercentage}>{porcentaje}%</Text>
             </View>

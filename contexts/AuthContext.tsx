@@ -2,7 +2,7 @@ import { PropsWithChildren, createContext, useCallback, useContext, useEffect, u
 
 import { authApiService, LoginDto, RegisterDto, setAuthToken } from '@/services/authApiService';
 import { persistSession, clearSession, getStoredSession } from '@/storage/authStorage';
-import { AuthResponse, Usuario } from '@/types/auth';
+import { AuthResponse, Rol, Usuario } from '@/types/auth';
 import { ApiClientError, obtenerMensajeErrorUsuario } from '@/utils/apiError';
 
 interface AuthContextValue {
@@ -42,7 +42,9 @@ export const AuthProvider = ({ children }: PropsWithChildren<unknown>) => {
       }
     };
 
-    void bootstrap();
+    bootstrap().catch((err) => {
+      console.error('Error en bootstrap de AuthContext:', err);
+    });
   }, []);
 
   const login = useCallback(async (payload: LoginDto) => {
@@ -91,16 +93,25 @@ export const AuthProvider = ({ children }: PropsWithChildren<unknown>) => {
 
   const hasRole = useCallback(
     (roles: string | string[]) => {
-      if (!user?.roles) {
+      if (!user) {
         return false;
       }
+      
+      // Normalizar roles del usuario: puede venir como 'rol' (singular) o 'roles' (plural)
+      const userRoles = (user.roles as unknown as (Rol | string)[]) ?? 
+                       (user.rol ? [user.rol] : []);
+      
+      if (!userRoles || userRoles.length === 0) {
+        return false;
+      }
+      
       const list = Array.isArray(roles) ? roles : [roles];
-      return user.roles.some((rol) => {
-        const roleName = typeof rol === 'string' ? rol : rol.nombre ?? '';
+      return userRoles.some((rol: Rol | string) => {
+        const roleName = typeof rol === 'string' ? rol : rol?.nombre ?? '';
         return list.some((target) => roleName?.toUpperCase() === target.toUpperCase());
       });
     },
-    [user?.roles],
+    [user],
   );
 
   const hasPermission = useCallback(

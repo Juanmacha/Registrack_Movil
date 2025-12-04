@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 
 import { useEstadosDisponibles } from '@/hooks/useSolicitudes';
 import { solicitudesApiService } from '@/services/solicitudesApiService';
@@ -28,6 +30,7 @@ export default function SeguimientoModal({
   const [descripcion, setDescripcion] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [nuevoEstado, setNuevoEstado] = useState<string>('');
+  const [documentosAdjuntos, setDocumentosAdjuntos] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{
     visible: boolean;
@@ -55,11 +58,111 @@ export default function SeguimientoModal({
       setDescripcion('');
       setObservaciones('');
       setNuevoEstado('');
+      setDocumentosAdjuntos({});
     }
   }, [visible, solicitud]);
 
+  // Convertir archivo a base64
+  const convertirArchivoABase64 = async (uri: string, mimeType: string): Promise<string> => {
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      throw new Error('Error al convertir archivo a base64');
+    }
+  };
+
+  // Seleccionar documento PDF
+  const seleccionarDocumento = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
+        multiple: true,
+      });
+
+      if (!result.canceled && result.assets) {
+        const nuevosDocumentos: Record<string, string> = { ...documentosAdjuntos };
+        
+        for (const asset of result.assets) {
+          const base64 = await convertirArchivoABase64(asset.uri, 'application/pdf');
+          // Remover extensión del nombre
+          const nombreSinExtension = asset.name.replace(/\.[^/.]+$/, '');
+          nuevosDocumentos[nombreSinExtension] = base64;
+        }
+        
+        setDocumentosAdjuntos(nuevosDocumentos);
+      }
+    } catch (error) {
+      setAlertConfig({
+        visible: true,
+        title: 'Error',
+        message: 'No se pudo seleccionar el documento. Inténtalo de nuevo.',
+        type: 'error',
+      });
+    }
+  };
+
+  // Seleccionar imagen
+  const seleccionarImagen = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: 'images',
+        allowsMultipleSelection: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets) {
+        const nuevosDocumentos: Record<string, string> = { ...documentosAdjuntos };
+        
+        for (const asset of result.assets) {
+          const mimeType = asset.type || 'image/jpeg';
+          const base64 = await convertirArchivoABase64(asset.uri, mimeType);
+          // Remover extensión del nombre si existe
+          const nombreSinExtension = (asset.fileName || `imagen_${Date.now()}`).replace(/\.[^/.]+$/, '');
+          nuevosDocumentos[nombreSinExtension] = base64;
+        }
+        
+        setDocumentosAdjuntos(nuevosDocumentos);
+      }
+    } catch (error) {
+      setAlertConfig({
+        visible: true,
+        title: 'Error',
+        message: 'No se pudo seleccionar la imagen. Inténtalo de nuevo.',
+        type: 'error',
+      });
+    }
+  };
+
+  // Eliminar documento
+  const eliminarDocumento = (nombre: string) => {
+    const nuevosDocumentos = { ...documentosAdjuntos };
+    delete nuevosDocumentos[nombre];
+    setDocumentosAdjuntos(nuevosDocumentos);
+  };
+
   // Obtener lista de estados disponibles
-  const estadosDisponibles = estados?.data?.estados_disponibles || estados?.estados_disponibles || [];
+  const estadosDisponiblesRaw = estados?.data?.estados_disponibles || estados?.estados_disponibles || [];
+  // Normalizar estados: si vienen como objetos, extraer el nombre o status_key
+  const estadosDisponibles = estadosDisponiblesRaw.map((estado: any) => {
+    if (typeof estado === 'string') {
+      return estado;
+    }
+    if (typeof estado === 'object' && estado !== null) {
+      return estado.nombre || estado.status_key || estado.name || String(estado);
+    }
+    return String(estado);
+  });
   const estadoActual = estados?.data?.estado_actual || estados?.estado_actual || solicitud?.estado || '';
 
   const handleCrearSeguimiento = async () => {
@@ -112,6 +215,10 @@ export default function SeguimientoModal({
         payload.nuevo_proceso = nuevoEstado;
       }
 
+      if (Object.keys(documentosAdjuntos).length > 0) {
+        payload.documentos_adjuntos = documentosAdjuntos;
+      }
+
       await solicitudesApiService.crearSeguimiento(payload);
 
       setAlertConfig({
@@ -128,6 +235,7 @@ export default function SeguimientoModal({
         setDescripcion('');
         setObservaciones('');
         setNuevoEstado('');
+        setDocumentosAdjuntos({});
         onSuccess();
         onClose();
       }, 1500);
@@ -269,21 +377,24 @@ export default function SeguimientoModal({
                 cliente.
               </Text>
               <View style={styles.estadosContainer}>
-                {estadosDisponibles.map((estado) => (
-                  <TouchableOpacity
-                    key={estado}
-                    style={[styles.estadoButton, nuevoEstado === estado && styles.estadoButtonSelected]}
-                    onPress={() => setNuevoEstado(nuevoEstado === estado ? '' : estado)}
-                    disabled={loading}>
-                    <Text
-                      style={[
-                        styles.estadoButtonText,
-                        nuevoEstado === estado && styles.estadoButtonTextSelected,
-                      ]}>
-                      {estado}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {estadosDisponibles.map((estado, index) => {
+                  const estadoString = typeof estado === 'string' ? estado : String(estado);
+                  return (
+                    <TouchableOpacity
+                      key={estadoString || index}
+                      style={[styles.estadoButton, nuevoEstado === estadoString && styles.estadoButtonSelected]}
+                      onPress={() => setNuevoEstado(nuevoEstado === estadoString ? '' : estadoString)}
+                      disabled={loading}>
+                      <Text
+                        style={[
+                          styles.estadoButtonText,
+                          nuevoEstado === estadoString && styles.estadoButtonTextSelected,
+                        ]}>
+                        {estadoString}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
               {nuevoEstado && (
                 <View style={styles.selectedEstadoBox}>
@@ -301,12 +412,39 @@ export default function SeguimientoModal({
             </View>
           )}
 
-          {/* Nota sobre documentos */}
-          <View style={styles.noteBox}>
-            <Text style={styles.noteText}>
-              💡 <Text style={styles.noteBold}>Nota:</Text> La funcionalidad para adjuntar documentos estará
-              disponible próximamente.
+          {/* Adjuntar Documentos */}
+          <View style={styles.formSection}>
+            <Text style={styles.label}>Documentos Adjuntos (Opcional)</Text>
+            <Text style={styles.helperText}>
+              Puedes adjuntar PDFs o imágenes (JPG, PNG). Máximo 5MB por archivo.
             </Text>
+            
+            <View style={styles.documentButtonsContainer}>
+              <TouchableOpacity style={styles.documentButton} onPress={seleccionarDocumento} disabled={loading}>
+                <Text style={styles.documentButtonText}>📄 Seleccionar PDF</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.documentButton} onPress={seleccionarImagen} disabled={loading}>
+                <Text style={styles.documentButtonText}>🖼️ Seleccionar Imagen</Text>
+              </TouchableOpacity>
+            </View>
+
+            {Object.keys(documentosAdjuntos).length > 0 && (
+              <View style={styles.documentosList}>
+                {Object.keys(documentosAdjuntos).map((nombre) => (
+                  <View key={nombre} style={styles.documentoItem}>
+                    <Text style={styles.documentoNombre} numberOfLines={1}>
+                      📎 {nombre}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.eliminarDocumentoButton}
+                      onPress={() => eliminarDocumento(nombre)}
+                      disabled={loading}>
+                      <Text style={styles.eliminarDocumentoText}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         </ScrollView>
       </Modal>
@@ -469,16 +607,73 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.primaryDark,
   },
+  documentButtonsContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  documentButton: {
+    flex: 1,
+    padding: 12,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  documentButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primaryDark,
+  },
+  documentosList: {
+    marginTop: 12,
+    gap: 8,
+  },
+  documentoItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  documentoNombre: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.primaryDark,
+    fontWeight: '500',
+    marginRight: 8,
+  },
+  eliminarDocumentoButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eliminarDocumentoText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
   footer: {
     flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'flex-end',
+    gap: 8,
+    justifyContent: 'space-between',
+    width: '100%',
   },
   button: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 8,
-    minWidth: 120,
+    flex: 1,
+    minWidth: 100,
+    maxWidth: '48%',
     alignItems: 'center',
     justifyContent: 'center',
   },

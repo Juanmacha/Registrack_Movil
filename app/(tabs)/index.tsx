@@ -6,7 +6,7 @@ import { HelloWave } from '@/components/hello-wave';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { colors } from '@/styles/authStyles';
@@ -39,24 +39,25 @@ export default function HomeScreen() {
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">Sesión activa</ThemedText>
         <ThemedText>Ya puedes navegar por la app o cerrar sesión para volver al login.</ThemedText>
-        {user && tieneRolAdministrativo(user) && (
-          <Link href="/dashboard" asChild>
-            <TouchableOpacity style={styles.dashboardButton}>
-              <Text style={styles.dashboardText}>📊 Ir al Dashboard</Text>
-            </TouchableOpacity>
-          </Link>
+        {user && tieneRolAdministrativo(user) ? (
+          <TouchableOpacity 
+            style={styles.dashboardButton}
+            onPress={() => router.push('/dashboard')}>
+            <Text style={styles.dashboardText}>📊 Ir al Dashboard</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity 
+            style={styles.dashboardButton}
+            onPress={() => router.push('/mis-procesos')}>
+            <Text style={styles.dashboardText}>📋 Mis Procesos</Text>
+          </TouchableOpacity>
         )}
         <TouchableOpacity style={[styles.logoutButton, loading && { opacity: 0.8 }]} onPress={handleLogout} disabled={loading}>
           <Text style={styles.logoutText}>{loading ? 'Cerrando...' : 'Cerrar sesión'}</Text>
         </TouchableOpacity>
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Explorar módulos</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-        </Link>
+        <ThemedText type="subtitle">Explorar módulos</ThemedText>
         <ThemedText>
           Esta es la pestaña principal. Ajusta el contenido según el rol administrativo o cliente.
         </ThemedText>

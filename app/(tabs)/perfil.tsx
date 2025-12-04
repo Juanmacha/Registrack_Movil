@@ -1,4 +1,4 @@
-import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,11 +6,11 @@ import { colors } from '@/styles/authStyles';
 import { tieneRolAdministrativo } from '@/utils/roles';
 
 import Card from '@/components/dashboard/Card';
-import AdminMenu from '@/components/AdminMenu';
+import ClienteMenu from '@/components/ClienteMenu';
 import CustomAlert from '@/components/CustomAlert';
 import { useState, useEffect } from 'react';
 
-export default function ProfileScreen() {
+export default function PerfilTabScreen() {
   const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -26,13 +26,24 @@ export default function ProfileScreen() {
   if (authLoading) {
     return (
       <View style={styles.container}>
-        <Text>Cargando...</Text>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Cargando...</Text>
       </View>
     );
   }
 
   if (!isAuthenticated || !user) {
     return null;
+  }
+
+  // Verificar que sea cliente (no administrativo)
+  const esAdministrativo = tieneRolAdministrativo(user);
+  if (esAdministrativo) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>Esta sección es solo para clientes.</Text>
+      </View>
+    );
   }
 
   const handleLogoutClick = () => {
@@ -51,12 +62,15 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleLogoutCancel = () => {
+    setShowLogoutConfirm(false);
+  };
+
   return (
     <View style={styles.wrapper}>
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.headerContent}>
-            <Image source={require('@/assets/images/logo.png')} style={styles.logo} />
             <View style={styles.headerTextContainer}>
               <Text style={styles.headerTitle}>Mi Perfil</Text>
               <Text style={styles.headerSubtitle}>Información de tu cuenta</Text>
@@ -86,9 +100,9 @@ export default function ProfileScreen() {
               <Text style={styles.value}>{user.nombre} {user.apellido}</Text>
             </View>
 
-            <View style={styles.infoRowEmail}>
+            <View style={styles.infoRow}>
               <Text style={styles.label}>Correo electrónico:</Text>
-              <Text style={styles.valueEmail}>{user.correo}</Text>
+              <Text style={styles.value}>{user.correo}</Text>
             </View>
 
             <View style={styles.infoRow}>
@@ -112,6 +126,20 @@ export default function ProfileScreen() {
               </View>
             )}
 
+            {user.direccion && (
+              <View style={styles.infoRow}>
+                <Text style={styles.label}>Dirección:</Text>
+                <Text style={styles.value}>{user.direccion}</Text>
+              </View>
+            )}
+
+            {user.ciudad && (
+              <View style={styles.infoRow}>
+                <Text style={styles.label}>Ciudad:</Text>
+                <Text style={styles.value}>{user.ciudad}</Text>
+              </View>
+            )}
+
             <View style={[styles.infoRow, styles.infoRowLast]}>
               <Text style={styles.label}>Estado de cuenta:</Text>
               <View style={[styles.statusBadge, user.estado ? styles.statusBadgeActive : styles.statusBadgeInactive]}>
@@ -128,11 +156,6 @@ export default function ProfileScreen() {
             <Card>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Rol y Permisos</Text>
-                {tieneRolAdministrativo(user) && (
-                  <View style={styles.adminBadgeInline}>
-                    <Text style={styles.adminBadgeTextInline}>ADMIN</Text>
-                  </View>
-                )}
               </View>
               
               <View style={styles.infoRow}>
@@ -154,7 +177,7 @@ export default function ProfileScreen() {
           </View>
         )}
       </ScrollView>
-      <AdminMenu />
+      <ClienteMenu />
 
       {/* Modal de confirmación de cierre de sesión */}
       <CustomAlert
@@ -165,7 +188,7 @@ export default function ProfileScreen() {
         confirmText="Sí, cerrar sesión"
         cancelText="Cancelar"
         onConfirm={handleLogoutConfirm}
-        onCancel={() => setShowLogoutConfirm(false)}
+        onCancel={handleLogoutCancel}
       />
     </View>
   );
@@ -207,12 +230,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  logo: {
-    width: 50,
-    height: 50,
-    resizeMode: 'contain',
-    marginRight: 12,
   },
   headerTextContainer: {
     flex: 1,
@@ -265,37 +282,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.primaryDark,
     letterSpacing: 0.3,
-  },
-  adminBadgeInline: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: colors.primaryDark,
-    borderRadius: 6,
-  },
-  adminBadgeTextInline: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
+    marginBottom: 20,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     paddingVertical: 14,
     paddingHorizontal: 4,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-  },
-  infoRowEmail: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingVertical: 14,
-    paddingHorizontal: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    flexWrap: 'wrap',
   },
   infoRowLast: {
     borderBottomWidth: 0,
@@ -312,17 +308,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 2,
     textAlign: 'right',
-    marginLeft: 8,
-  },
-  valueEmail: {
-    fontSize: 14,
-    color: colors.primaryDark,
-    fontWeight: '600',
-    flex: 1,
-    marginLeft: 8,
-    textAlign: 'right',
-    flexShrink: 1,
-    minWidth: 0,
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -344,6 +329,17 @@ const styles = StyleSheet.create({
   },
   statusBadgeTextInactive: {
     color: '#991B1B',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: colors.gray,
+    fontSize: 14,
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 20,
   },
 });
 
